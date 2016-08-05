@@ -2,7 +2,7 @@
 
 
 
-function  travellingSpacecraft(startDate, maxDuration, timeStep,...
+function  travellingSpacecraft_snapshot(startDate, maxDuration, timeStep,...
     allPlanets, startPlanet, endPlanet, UserSettings)
 
 if ~isempty(UserSettings)
@@ -18,10 +18,29 @@ if ~isempty(UserSettings)
     
 else
     
+    axHandle = UserSettings.axHandle;
+    messageHandle = UserSettings.messageHandle;
+    parallelOpt = UserSettings.parallelOpt;
+    noIntOrbitOpt = UserSettings.noIntOrbitOpt;
+    maxTransitOpt = UserSettings.maxTransitOpt;
+    dtOpt = UserSettings.dtOpt;
+    maxCost = UserSettings.maxCost;
+    c3Opt = UserSettings.c3Opt;
+    
 end
 
 minDT = 3*30;
-maxDT = 1000000*30;
+
+%%%% TEST INPUT
+% needs update to comply with gui changes
+if nargin == 0
+    startDate = struct('y',2020, 'm',1, 'd',9, 'UT',0);
+    allPlanets = [2 3 4 5];
+    startPlanet = 5;
+    endPlanet = 2;
+    maxDuration = 4*360;
+    timeStep = 30;
+end
 
 %%
 %%%% LAST UPDATED
@@ -57,9 +76,7 @@ minPlanetOrbitDuration = 0;
 
 %%
 %%%%%   CONSIDERATIONS
-% parallel option
-% draw hyperbolic orbits
-% stop sending full vectors to constraint functions
+
 % flyby, two sets of variables, mag only dv that must string together
 % make each constraint its own matrix, concatenate before optimization
 % add maximum orbit duration in addition to minimum orbit duration
@@ -150,20 +167,19 @@ arriveTimeVector = timeStep:timeStep:maxDuration;
 arriveTimeIndex  = maxDuration/timeStep:-1:0;
 
 % Number of Planets
-numPlanets = length(allPlanets);
+numberOfPlanets = length(allPlanets);
 
 % Number of time permutations
 timePermutations = sum(arriveTimeIndex);
 
 % Final Indices
-n1EndIndex = numPlanets;
-n2EndIndex = numPlanets;
+n1EndIndex = numberOfPlanets;
+n2EndIndex = numberOfPlanets;
 t1EndIndex = maxDuration/timeStep;
 t2EndIndex = 1;
 
 % Define total number of variables and effective variables
-totalNumVars = getIndex(n1EndIndex, n2EndIndex, t1EndIndex, t2EndIndex,...
-    numPlanets, timePermutations, arriveTimeIndex);
+totalNumOfVars = getIndex(n1EndIndex,n2EndIndex,t1EndIndex,t2EndIndex,numberOfPlanets,timePermutations,arriveTimeIndex);
 
 % Define time vector used for GetIndex
 transitTimeSum = zeros(size(arriveTimeIndex));
@@ -171,75 +187,69 @@ for timeLoop = 1:length(arriveTimeIndex)
     transitTimeSum(timeLoop) = sum(arriveTimeIndex(1:timeLoop));
 end
 
-%% Initialize Constraints
+%%% Constraints
 
-%%% Number of rows for inequality constraints
-mi(1) = 1;                          % 1 Minimum number of transits
-mi(2) = numPlanets;                 % 2 Depart from each planet
-mi(3) = numPlanets;                 % 3 Arrive at each planet
-mi(4) = length(departTimeVector);   % 4 Only one event can begin at each time
-mi(5) = length(departTimeVector);   % 5 Only one event can end at each time
+% Number of rows for inequality constraints
+mi(1) = 1;
+mi(2) = numberOfPlanets;
+mi(3) = numberOfPlanets;
+mi(4) = length(departTimeVector);
+mi(5) = length(departTimeVector);
+% if ~nonReturn
+%     mi(6) = numberOfPlanets;
+% else
+%     mi(6) = numberOfPlanets+1;
+% end
 
 % Number of rows for equality constraints
-me(1) = 1;                                          % 1 Home planet first
-me(2) = 1;                                          % 2 Target planet last
-me(3) = numPlanets*(length(departTimeVector)-1);    % 3 Time pairs must match
+me(1) = 2;
+me(2) = numberOfPlanets*(length(departTimeVector)-1);
 
-validIneqConstraints = [1:5];
-validEqConstraints = [1:3];
-
-% Initialize A and b cells
-AiCell = cell(max(validIneqConstraints),1);
-biCell = cell(max(validIneqConstraints),1);
-for loop = validIneqConstraints
-    AiCell{loop} = zeros(mi(loop), totalNumVars);
-    biCell{loop} = zeros(mi(loop), 1);
-end
-AeCell = cell(max(validEqConstraints),1);
-beCell = cell(max(validEqConstraints),1);
-for loop = validEqConstraints
-    AeCell{loop} = zeros(me(loop), totalNumVars);
-    beCell{loop} = zeros(me(loop), 1);
-end
+% Initialize A and b matrices
+%Ai = sparse(zeros(sum(mi),totalNumOfVars));
+%Ae = sparse(zeros(sum(me),totalNumOfVars));
+Ai = zeros(sum(mi),totalNumOfVars);
+Ae = zeros(sum(me),totalNumOfVars);
+bi = zeros(sum(mi),1);
+be = zeros(sum(me),1);
 
 % Define inequality b matrix
 if ~nonReturn
-    biCell{1} = -numPlanets;
+    bi(1) = -numberOfPlanets;
 else
-    biCell{1} = 1-numPlanets;
+    bi(1) = -(numberOfPlanets-1);
 end
-biCell{2}(:) = -1;
-biCell{3}(:) = -1;
-if nonReturn
-    biCell{2}(endPlanetIndex) = 0;
-    biCell{3}(startPlanetIndex) = 0;
+bi(    mi(1  ) +1:sum(mi(1:2))) = -1;
+bi(sum(mi(1:2))+1:sum(mi(1:3))) = -1;
+if nonReturn                     %% non return mission
+    bi(    mi(1  ) +endPlanetIndex  ) = 0;
+    bi(sum(mi(1:2))+startPlanetIndex) = 0;
 end
-biCell{4}(:) = 1;
-biCell{5}(:) = 1;
+bi(sum(mi(1:3))+1:sum(mi(1:4))) = 1;
+bi(sum(mi(1:4))+1:sum(mi(1:5))) = 1;
+%b_i(sum(mi(1:5))+1:sum(mi(1:6))) = 1;
 
 % Define nonzero elements of equality b matrix
-beCell{1} = 1;
-beCell{2} = 1;
-
-%%
+be(1) = 1;
+be(2) = 1;
 
 % Initialize values
-c = zeros(totalNumVars,1);
-n1IndexVector = zeros(totalNumVars,1);
-n2IndexVector = zeros(totalNumVars,1);
-t1IndexVector = zeros(totalNumVars,1);
-t2IndexVector = zeros(totalNumVars,1);
-dtVector = zeros(totalNumVars,1);
+c = zeros(totalNumOfVars,1);
+n1IndexVector = zeros(totalNumOfVars,1);
+n2IndexVector = zeros(totalNumOfVars,1);
+t1IndexVector = zeros(totalNumOfVars,1);
+t2IndexVector = zeros(totalNumOfVars,1);
+dtVector = zeros(totalNumOfVars,1);
 
 disp(' ')
-fprintf('Total number of variables: %d\n',totalNumVars);
-effNumOfVars = totalNumVars*(1-1/numPlanets);
+fprintf('Total number of variables: %d\n',totalNumOfVars);
+effNumOfVars = totalNumOfVars*(1-1/numberOfPlanets);
 % upper bound
 fprintf('Estimated number of deltaV calculations: %d\n', int32(effNumOfVars));
 % warn if bintprog might fail
 if effNumOfVars >= 65535
     disp('Warning: It is unlikely that the current solver can solve the system.');
-elseif totalNumVars >= 65535
+elseif totalNumOfVars >= 65535
     disp('Warning: The current solver may not be able to solve the system.');
 end
 disp('Calculating cost vector...')
@@ -247,76 +257,137 @@ tic
 
 %%
 
-
-for j = 1:totalNumVars
+%%% 4 FOR LOOPS, OR SINGLE PARFOR
+%{
+x_eff = 0;
+time = zeros(1,round(effectiveNumberOfVariables));
+effectiveNumberOfVariables = totalNumberOfVariables*(1-1/numberOfPlanets);
+tic
+for index1 = 1:numberOfPlanets
     
-    [n1Index,n2Index,t1Index,t2Index] = getIndex(j, numPlanets,...
-        timePermutations, arriveTimeIndex);
-    n1IndexVector(j) = n1Index;
-    n2IndexVector(j) = n2Index;
-    t1IndexVector(j) = t1Index;
-    t2IndexVector(j) = t2Index;
+    % Define the first planet
+    pl1 = planetIndex(allPlanets(index1));
     
-    % Define departure time
-    t1 = departTimeVector(t1Index);
-    
-    % Define Arrival Time
-    t2 = t1+arriveTimeVector(t2Index);
-    
-    dt = t2-t1;
-    dtVector(j) = dt;
-    
-    % Find Cost
-    if n1Index ~= n2Index
-        if dt<minDT || dt>maxDT
-            c(j) = 1e8;
-        elseif ~(nonReturn && (n1Index==endPlanetIndex || n2Index==startPlanetIndex))
-            % for nonreturn, assume start isn't arrived at, and end is departed from
-            c(j) = calculateDV(dt, allPlanets(n1Index), allPlanets(n2Index),...
-                startTime+t1/36525, dtOpt, c3Opt);
-            %if ~isreal(c(j))
-            %    c(j) = 1e8;
-            %end
+    for index2 = 1:numberOfPlanets
+        
+        % Define the second planet
+        pl2 = planetIndex(allPlanets(index2));
+        
+        for index3 = 1:length(departTimeVector)
+            
+            % Define departure time
+            t1 = departTimeVector(index3);
+            
+            for index4 = 1:length(departTimeVector)-index3+1
+                
+                % Define Arrival Time
+                t2 = t1+arriveTimeVector(index4);
+                
+                % Index Check
+                x = getIndex(index1,index2,index3,index4,numberOfPlanets,timePermutations,arriveTimeIndex);
+                                
+                % Find Cost
+                if index1 ~= index2
+                    
+                    f(x) = calculateDV(t1, t2, pl1, pl2, startTime+t1/36525);
+                    
+                    time(x) = toc;
+                    x_eff = x_eff+1;
+                    if x_eff == 1 || x_eff == effectiveNumberOfVariables || floor(sum(time))~=floor(sum(time(1:x-1)))
+                        displayProgress(time,x_eff,effectiveNumberOfVariables)
+                    end
+                end
+                
+                tic
+                
+                % Calculate Constraints in sub-function
+                [Ai(:,x), Ae(:,x)] = defineConstraints(mi,me,t1,t2,index1,index2,index3,startPlanetIndex,endPlanetIndex,arriveTimeVector,departTimeVector);
+                
+            end
         end
     end
+end
+%}
+
+if parallelOpt
     
-    AiCell = defineIneqConstraints(AiCell, j, validIneqConstraints, t2, ...
-        n1Index, n2Index, t1Index, arriveTimeVector);
+    parfor j = 1:totalNumOfVars
+        
+        [n1Index,n2Index,t1Index,t2Index] = getIndex(j,numberOfPlanets,timePermutations,arriveTimeIndex);
+        n1IndexVector(j) = n1Index;
+        n2IndexVector(j) = n2Index;
+        t1IndexVector(j) = t1Index;
+        t2IndexVector(j) = t2Index;
+        
+        % Define departure time
+        t1 = departTimeVector(t1Index);
+        
+        % Define Arrival Time
+        t2 = t1+arriveTimeVector(t2Index);
+        
+        dt = t2-t1;
+        dtVector(j) = dt;
+        
+        % Find Cost
+        if n1Index ~= n2Index
+            if dt<minDT
+                c(j) = 1e8;
+            elseif ~(nonReturn && (n1Index==endPlanetIndex || n2Index==startPlanetIndex)) %% for nonreturn, assume start isn't arrived at, and end is departed from
+                c(j) = calculateDV(dt, allPlanets(n1Index), allPlanets(n2Index), startTime+t1/36525, dtOpt, c3Opt);
+            end
+        end
+        
+        % Calculate Constraints in sub-function
+        [Ai(:,j), Ae(:,j)] = defineConstraints(mi,me,t1,t2,n1Index,n2Index,t1Index,startPlanetIndex,endPlanetIndex,arriveTimeVector,departTimeVector,numberOfPlanets);
+        
+    end
     
-    AeCell = defineEqConstraints(AeCell, j, validEqConstraints, t1, t2,...
-        n1Index, n2Index, t1Index, startPlanetIndex, endPlanetIndex,...
-        arriveTimeVector, departTimeVector);
+else
+    
+    %%% not in sync, just comment out for now
+    %{
+    for j = 1:totalNumOfVars
+        
+        [n1Index,n2Index,t1Index,t2Index] = getIndex(j,numberOfPlanets,timePermutations,arriveTimeIndex);
+        n1IndexVector(j) = n1Index;
+        n2IndexVector(j) = n2Index;
+        t1IndexVector(j) = t1Index;
+        t2IndexVector(j) = t2Index;
+        
+        % Define departure time
+        t1 = departTimeVector(t1Index);
+        
+        % Define Arrival Time
+        t2 = t1+arriveTimeVector(t2Index);
+        
+        % Find Cost
+        if n1Index ~= n2Index
+            if ~(nonReturn && (n1Index==endPlanetIndex || n2Index==startPlanetIndex)) %% for nonreturn, assume start isn't arrived at, and end is departed from
+                c(j) = calculateDV(t2-t1, allPlanets(n1Index), allPlanets(n2Index), startTime+t1/36525, dtOpt, c3Opt);
+            end
+        end
+        
+        % Calculate Constraints in sub-function
+        [Ai(:,j), Ae(:,j)] = defineConstraints(mi,me,t1,t2,n1Index,n2Index,t1Index,startPlanetIndex,endPlanetIndex,arriveTimeVector,departTimeVector,numberOfPlanets);
+        
+    end
+    %}
     
 end
-
 
 
 %%
 
-Ai = [];
-bi = [];
-for constraint = validIneqConstraints
-    Ai = [Ai; AiCell{constraint}];
-    bi = [bi; biCell{constraint}];
-end
-
-Ae = [];
-be = [];
-for constraint = validEqConstraints
-    Ae = [Ae; AeCell{constraint}];
-    be = [be; beCell{constraint}];
-end
-
 %%% add forced orbit constraint
-% 
-% if minPlanetOrbitDuration
-%     for i = 1:numPlanets
-%         if allPlanets(i)~=startPlanet && allPlanets(i)~=endPlanet
-%             Ae(end+1,n1IndexVector==i & n2IndexVector==i) = 1;
-%             be(end+1) = 1;
-%         end
-%     end
-% end
+
+if minPlanetOrbitDuration
+    for i = 1:numberOfPlanets
+        if allPlanets(i)~=startPlanet && allPlanets(i)~=endPlanet
+            Ae(end+1,n1IndexVector==i & n2IndexVector==i) = 1;
+            be(end+1) = 1;
+        end
+    end
+end
 
 % reduce number of variables
 varsToDelete = false(size(c));
@@ -346,19 +417,17 @@ if noIntOrbitOpt
 end
 
 % deltav too high
-% maybe find a way to adjust for c3 option?
-switch dtOpt
-    case 2
-        cTemp = c./sqrt(dtVector);
-    otherwise
-        cTemp = c;
-end
+% maybe find a way to adjust for c3 or sqrt(dt) options?
 if maxCost
-    tooHigh = cTemp>maxCost;
+    tooHigh = c>maxCost;
 else
-    tooHigh = cTemp>1e7;
+    tooHigh = c>1e7;
 end
 varsToDelete = tooHigh | varsToDelete;
+
+% remove the variables that weren't calculated due to dt too low
+%shortDT = (t2IndexVector-t1IndexVector)<minDT;
+%varsToDelete = shortDT | varsToDelete;
 
 % non return mission simplifications
 if nonReturn
@@ -369,14 +438,15 @@ end
 
 % transit time limit (may remove sqrt(dt) factor if needed)
 if maxTransitOpt
-    tooLongTransit = (n2IndexVector-n1IndexVector)>maxTransitOpt &...
-        n1IndexVector~=n2IndexVector;
+    tooLongTransit = (n2IndexVector-n1IndexVector)>maxTransitOpt & n1IndexVector~=n2IndexVector;
     varsToDelete = tooLongTransit | varsToDelete;
 end
 
 % set min orbit time (only if specified)
+%if
 orbitTooShort = (n1IndexVector==n2IndexVector) & (dtVector<minPlanetOrbitDuration);
 varsToDelete = orbitTooShort | varsToDelete;
+%end
 
 c(varsToDelete) = [];
 n1IndexVector(varsToDelete) = [];
@@ -421,6 +491,7 @@ Xt2 = zeros(1,numIndex);
 for indexLoop = 1:numIndex
     
     % Get current variable
+    %[Xn1_index(loop), Xn2_index(loop), Xt1_index(loop), Xt2_index(loop)] = getIndex(X_indices(loop),numberOfPlanets,timePermutations,arriveTimeIndex);
     Xn1_index(indexLoop) = n1IndexVector(X_indices(indexLoop));
     Xn2_index(indexLoop) = n2IndexVector(X_indices(indexLoop));
     Xt1_index(indexLoop) = t1IndexVector(X_indices(indexLoop));
@@ -455,6 +526,33 @@ while indexLoop<numIndex+1;
         indexLoop = indexLoop+1;
     end
 end
+
+%%% print array
+%{
+fprintf('\r')
+for line = 1:4
+    switch line
+        case 1
+            array = Xn1;
+            fprintf('n1\t')
+        case 2
+            array = Xn2;
+            fprintf('n2\t')
+        case 3
+            array = Xt1;
+            fprintf('t1\t')
+        case 4
+            array = Xt2;
+            fprintf('t2\t')
+    end
+    for loop = 1:numIndex
+        fprintf('%d\t',array(loop))
+    end
+    fprintf('\r')
+end
+fprintf('\r')
+%}
+
 
 %%% natural language ouput
 fprintf('\r')

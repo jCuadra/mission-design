@@ -22,7 +22,7 @@ function varargout = missionGUI(varargin)
 
 % Edit the above text to modify the response to help missionGUI
 
-% Last Modified by GUIDE v2.5 14-Jan-2016 19:07:26
+% Last Modified by GUIDE v2.5 25-Jun-2016 08:04:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -742,10 +742,21 @@ if(get(handles.radiobutton22,'Value')); c3Opt=1; end
 
 drawnow
 
+UserSettings = struct('axHandle', handles.axes1,...
+    'messageHandle',handles.text15,...
+    'parallelOpt',parallelOpt,...
+    'noIntOrbitOpt',noIntOrbitOpt,...
+    'maxTransitOpt',maxTransitOpt,...
+    'dtOpt',dtOpt,...
+    'maxCost',maxCost,...
+    'c3Opt',c3Opt);
+
+
 travellingSpacecraft(startDate, maxDuration, timeStep,...
-    allPlanets, startPlanet, endPlanet,...
-    handles.axes1, hObject, handles.text15, parallelOpt,...
-    noIntOrbitOpt, maxTransitOpt, dtOpt, maxCost, c3Opt)
+    allPlanets, startPlanet, endPlanet, UserSettings)
+
+%travellingSpacecraft_snapshot(startDate, maxDuration, timeStep,...
+%    allPlanets, startPlanet, endPlanet, UserSettings)
 
 set(hObject,'Enable','on')
 set(hObject,'String','RUN')
@@ -887,6 +898,38 @@ function edit11_Callback(hObject, eventdata, handles)
 % --- Executes during object creation, after setting all properties.
 function edit11_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to edit11 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in checkbox14.
+function checkbox14_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox14 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox14
+
+
+
+function edit12_Callback(hObject, eventdata, handles)
+% hObject    handle to edit12 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit12 as text
+%        str2double(get(hObject,'String')) returns contents of edit12 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit12_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit12 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 

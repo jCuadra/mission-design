@@ -22,8 +22,8 @@ end
 
 % sum of c3 and dv
 if c3Opt
-    deltaVa = norm(V1a-p1Struct.v)^2+norm(V2a-p2Struct.v);
-    deltaVb = norm(V1b-p1Struct.v)^2+norm(V2b-p2Struct.v);
+    deltaVa = norm(V1a-p1Struct.v)^2;%+norm(V2a-p2Struct.v);
+    deltaVb = norm(V1b-p1Struct.v)^2;%+norm(V2b-p2Struct.v);
 else
     % sum of individual dv
     deltaVa = norm(V1a-p1Struct.v)+norm(V2a-p2Struct.v);

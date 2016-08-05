@@ -1,4 +1,4 @@
-function animateMission(N1, N2, T1, T2, startTime, maxDuration, proceedHandle, axHandle)
+function animateMission(N1, N2, T1, T2, startTime, maxDuration, axHandle)
 
 planets = unique([N1 N2]);
 numPlanets = length(planets);
