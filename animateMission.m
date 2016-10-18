@@ -55,7 +55,7 @@ for day = 0:step:maxDuration
     
     % plot transit
     if N1(phase) ~= N2(phase)
-        drawPoint_Transit(axHandle, N1(phase),N2(phase),startTime+T1(phase)/36525,T2(phase)-T1(phase),day-T1(phase),'b.');
+        drawPoint_Transit(axHandle, N1(phase),N2(phase),startTime+T1(phase)/36525,T2(phase)-T1(phase),day-T1(phase),'bo');
     end
     
     drawnow

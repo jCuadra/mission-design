@@ -398,8 +398,8 @@ disp('Optimization started.')
 
 % Time MATLAB bintprog function
 tic
-X = bintprog(c,Ai,bi,Ae,be);
-%X = intlinprog(c,1:length(c),Ai,bi,Aeq,beq,zeros(size(c)),ones(size(c)));
+%X = bintprog(c,Ai,bi,Ae,be);
+X = intlinprog(c,1:length(c),Ai,bi,Ae,be,zeros(size(c)),ones(size(c)));
 toc
 
 % Find nonzero indices
