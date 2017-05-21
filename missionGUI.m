@@ -753,13 +753,13 @@ UserSettings = struct('axHandle', handles.axes1,...
 
 
 travellingSpacecraft(startDate, maxDuration, timeStep,...
-    allPlanets, startPlanet, endPlanet, UserSettings)
+    allPlanets, startPlanet, endPlanet, UserSettings);
 
 %travellingSpacecraft_snapshot(startDate, maxDuration, timeStep,...
 %    allPlanets, startPlanet, endPlanet, UserSettings)
 
-set(hObject,'Enable','on')
-set(hObject,'String','RUN')
+set(hObject,'Enable','on');
+set(hObject,'String','RUN');
 guidata(hObject, handles);
 
 

@@ -8,7 +8,7 @@ function  travellingSpacecraft(startDate, maxDuration, timeStep,...
 if ~isempty(UserSettings)
     
     axHandle = UserSettings.axHandle;
-    messageHandle = UserSettings.messageHandle
+    messageHandle = UserSettings.messageHandle;
     parallelOpt = UserSettings.parallelOpt;
     noIntOrbitOpt = UserSettings.noIntOrbitOpt;
     maxTransitOpt = UserSettings.maxTransitOpt;
@@ -499,7 +499,7 @@ end
 fprintf('Total cost: %2.4f\r', totalCost);%/sum(sqrt(Xt2-Xt1)) );
 fprintf('\r')
 
-set(messageHandle,'Enable','on')
+set(messageHandle,'Enable','on');
 
 % animate mission sequence
 animateMission(Xn1, Xn2, Xt1, Xt2, startTime, maxDuration, axHandle);
