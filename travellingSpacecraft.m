@@ -54,11 +54,11 @@ minPlanetOrbitDuration = 0;
 
 % force intermediate orbits and forced orbits to be exclusive otherwise
 
+% parallel option
 
 %%
 %%%%%   CONSIDERATIONS
 % no int orbits setting is backwards
-% parallel option
 % draw hyperbolic orbits
 % stop sending full vectors to constraint functions
 % flyby, two sets of variables, mag only dv that must string together
