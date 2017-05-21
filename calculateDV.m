@@ -34,6 +34,10 @@ end
 %deltaVa = abs(norm(V1a)-norm(p1Struct.v))+abs(norm(V2a)-norm(p2Struct.v));
 %deltaVb = abs(norm(V1b)-norm(p1Struct.v))+abs(norm(V2b)-norm(p2Struct.v));
 
+% farscape magic orbit
+%deltaVa = norm(V1a)-norm(p1Struct.v)+norm(V2a)-norm(p2Struct.v);
+%deltaVb = norm(V1b)-norm(p1Struct.v)+norm(V2b)-norm(p2Struct.v);
+    
 %%% cost increases with time of flight
 switch dtOption
     case 1

@@ -8,7 +8,7 @@ function  travellingSpacecraft(startDate, maxDuration, timeStep,...
 if ~isempty(UserSettings)
     
     axHandle = UserSettings.axHandle;
-    messageHandle = UserSettings.messageHandle;
+    messageHandle = UserSettings.messageHandle
     parallelOpt = UserSettings.parallelOpt;
     noIntOrbitOpt = UserSettings.noIntOrbitOpt;
     maxTransitOpt = UserSettings.maxTransitOpt;
@@ -57,6 +57,7 @@ minPlanetOrbitDuration = 0;
 
 %%
 %%%%%   CONSIDERATIONS
+% no int orbits setting is backwards
 % parallel option
 % draw hyperbolic orbits
 % stop sending full vectors to constraint functions
@@ -247,25 +248,24 @@ tic
 
 %%
 
+parfor j = 1:totalNumVars
 
-for j = 1:totalNumVars
-    
     [n1Index,n2Index,t1Index,t2Index] = getIndex(j, numPlanets,...
         timePermutations, arriveTimeIndex);
     n1IndexVector(j) = n1Index;
     n2IndexVector(j) = n2Index;
     t1IndexVector(j) = t1Index;
     t2IndexVector(j) = t2Index;
-    
+
     % Define departure time
     t1 = departTimeVector(t1Index);
-    
+
     % Define Arrival Time
     t2 = t1+arriveTimeVector(t2Index);
-    
+
     dt = t2-t1;
     dtVector(j) = dt;
-    
+
     % Find Cost
     if n1Index ~= n2Index
         if dt<minDT || dt>maxDT
@@ -279,6 +279,20 @@ for j = 1:totalNumVars
             %end
         end
     end
+
+end
+
+%%% write constraints to cell
+for j = 1:totalNumVars
+    
+    [n1Index,n2Index,t1Index,t2Index] = getIndex(j, numPlanets,...
+        timePermutations, arriveTimeIndex);
+    
+    % Define departure time
+    t1 = departTimeVector(t1Index);
+    
+    % Define Arrival Time
+    t2 = t1+arriveTimeVector(t2Index);
     
     AiCell = defineIneqConstraints(AiCell, j, validIneqConstraints, t2, ...
         n1Index, n2Index, t1Index, arriveTimeVector);
@@ -286,6 +300,7 @@ for j = 1:totalNumVars
     AeCell = defineEqConstraints(AeCell, j, validEqConstraints, t1, t2,...
         n1Index, n2Index, t1Index, startPlanetIndex, endPlanetIndex,...
         arriveTimeVector, departTimeVector);
+    
     
 end
 
@@ -308,7 +323,7 @@ for constraint = validEqConstraints
 end
 
 %%% add forced orbit constraint
-% 
+%
 % if minPlanetOrbitDuration
 %     for i = 1:numPlanets
 %         if allPlanets(i)~=startPlanet && allPlanets(i)~=endPlanet
@@ -318,7 +333,7 @@ end
 %     end
 % end
 
-% reduce number of variables
+%%% reduce number of variables
 varsToDelete = false(size(c));
 
 % remove invalid orbits from start & end planet(s)
@@ -418,8 +433,8 @@ Xn2 = zeros(1,numIndex);
 Xt1 = zeros(1,numIndex);
 Xt2 = zeros(1,numIndex);
 
+
 for indexLoop = 1:numIndex
-    
     % Get current variable
     Xn1_index(indexLoop) = n1IndexVector(X_indices(indexLoop));
     Xn2_index(indexLoop) = n2IndexVector(X_indices(indexLoop));
@@ -431,7 +446,6 @@ for indexLoop = 1:numIndex
     Xn2(indexLoop) = allPlanets(Xn2_index(indexLoop));
     Xt1(indexLoop) = departTimeVector(Xt1_index(indexLoop));
     Xt2(indexLoop) = Xt1(indexLoop)+arriveTimeVector(Xt2_index(indexLoop));
-    
 end
 
 [~, indexOrder] = sort(Xt1);
@@ -442,7 +456,7 @@ Xt2 = Xt2(indexOrder);
 
 % concatenate consecutive orbits
 indexLoop = 2;
-while indexLoop<numIndex+1;
+while indexLoop<numIndex+1
     if Xn1(indexLoop)==Xn1(indexLoop-1) && Xn1(indexLoop)==Xn2(indexLoop) &&...
             Xn1(indexLoop-1)==Xn2(indexLoop-1)
         Xt2(indexLoop-1) = Xt2(indexLoop);

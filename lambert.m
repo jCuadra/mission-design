@@ -120,7 +120,7 @@
 % Very fast, but not very robust for more complicated cases
 % -----------------------------------------------------------------
 function [V1, V2, extremal_distances, exitflag] = lambert(...
-        r1vec, r2vec, tf, m, muC) %#eml
+        r1vec, r2vec, tf, m, muC) %#codegen
 
 % original documentation:
 %{
