@@ -6,6 +6,9 @@
 % 4 Only one event can begin at each time
 % 5 Only one event can end at each time
 
+%%% Future
+% re-add consecutive orbit constraint, but only for non-start/end planets
+
 function Ai = defineIneqConstraints(Ai, j, validIneqConstraints, t2,...
     n1Index, n2Index, t1Index, arriveTimeVector)
 

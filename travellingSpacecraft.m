@@ -243,46 +243,87 @@ if effNumOfVars >= 65535
 elseif totalNumVars >= 65535
     disp('Warning: The current solver may not be able to solve the system.');
 end
-disp('Calculating cost vector...')
-tic
 
-%%
+%%  Cost Vector Calculation
 
-parfor j = 1:totalNumVars
+disp('Calculating cost vetor...')
 
-    [n1Index,n2Index,t1Index,t2Index] = getIndex(j, numPlanets,...
-        timePermutations, arriveTimeIndex);
-    n1IndexVector(j) = n1Index;
-    n2IndexVector(j) = n2Index;
-    t1IndexVector(j) = t1Index;
-    t2IndexVector(j) = t2Index;
-
-    % Define departure time
-    t1 = departTimeVector(t1Index);
-
-    % Define Arrival Time
-    t2 = t1+arriveTimeVector(t2Index);
-
-    dt = t2-t1;
-    dtVector(j) = dt;
-
-    % Find Cost
-    if n1Index ~= n2Index
-        if dt<minDT || dt>maxDT
-            c(j) = 1e8;
-        elseif ~(nonReturn && (n1Index==endPlanetIndex || n2Index==startPlanetIndex))
-            % for nonreturn, assume start isn't arrived at, and end is departed from
-            c(j) = calculateDV(dt, allPlanets(n1Index), allPlanets(n2Index),...
-                startTime+t1/36525, dtOpt, c3Opt);
-            %if ~isreal(c(j))
-            %    c(j) = 1e8;
-            %end
+if parallelOpt
+    
+    tic
+    parfor j = 1:totalNumVars
+        
+        tic
+        
+        [n1Index,n2Index,t1Index,t2Index] = getIndex(j, numPlanets,...
+            timePermutations, arriveTimeIndex);
+        n1IndexVector(j) = n1Index;
+        n2IndexVector(j) = n2Index;
+        t1IndexVector(j) = t1Index;
+        t2IndexVector(j) = t2Index;
+        
+        % Define departure time
+        t1 = departTimeVector(t1Index);
+        
+        % Define Arrival Time
+        t2 = t1+arriveTimeVector(t2Index);
+        
+        dt = t2-t1;
+        dtVector(j) = dt;
+        
+        % Find Cost
+        if n1Index ~= n2Index
+            if dt<minDT || dt>maxDT
+                c(j) = 1e8;
+            elseif ~(nonReturn && (n1Index==endPlanetIndex || n2Index==startPlanetIndex))
+                % for nonreturn, assume start isn't arrived at, and end is departed from
+                c(j) = calculateDV(dt, allPlanets(n1Index), allPlanets(n2Index),...
+                    startTime+t1/36525, dtOpt, c3Opt);
+                %if ~isreal(c(j))
+                %    c(j) = 1e8;
+                %end
+            end
         end
+        
+        
+        
     end
-
+    
+else
+    
+    progressTracker = zeros(1,totalNumVars);
+    prevDisp = -1;
+    
+    for j = 1:totalNumVars
+        
+        tic
+        
+        [n1Index,n2Index,t1Index,t2Index,c_j]=...
+            iterationFunction(j,numPlanets,timePermutations,arriveTimeIndex,...
+            arriveTimeVector,departTimeVector,minDT,maxDT,nonReturn,...
+            allPlanets,startTime,dtOpt, c3Opt);
+        
+        n1IndexVector(j) = n1Index;
+        n2IndexVector(j) = n2Index;
+        t1IndexVector(j) = t1Index;
+        t2IndexVector(j) = t2Index;
+        
+        c(j) = c_j;
+        
+        progressTracker(j) = toc;
+        
+        if fix(100*j/totalNumVars)~=prevDisp
+            prevDisp=fix(100*j/totalNumVars);
+            displayProgress(progressTracker,j,totalNumVars)
+            pause(0.01)
+        end
+        
+    end
+    
 end
 
-%%% write constraints to cell
+%% Creating Constraint Matrices
+
 for j = 1:totalNumVars
     
     [n1Index,n2Index,t1Index,t2Index] = getIndex(j, numPlanets,...
@@ -300,13 +341,12 @@ for j = 1:totalNumVars
     AeCell = defineEqConstraints(AeCell, j, validEqConstraints, t1, t2,...
         n1Index, n2Index, t1Index, startPlanetIndex, endPlanetIndex,...
         arriveTimeVector, departTimeVector);
-    
-    
+
 end
 
 
 
-%%
+%% Constraint Pruning
 
 Ai = [];
 bi = [];
