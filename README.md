@@ -24,6 +24,8 @@ Website: [Interplanetary Trajectory Optimization](http://ccar.colorado.edu/ASEN5
   
 ## Sample Window and Output:
 
+![Sample Window](Sample-window.png)
+
 ```
 Total number of variables: 5994
 Estimated number of deltaV calculations: 3996
