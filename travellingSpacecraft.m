@@ -246,7 +246,7 @@ end
 
 %%  Cost Vector Calculation
 
-disp('Calculating cost vetor...')
+disp('Calculating cost vector...')
 
 if parallelOpt
     

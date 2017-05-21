@@ -14,5 +14,6 @@ for deg = 0:360
 end
 
 plot3(axHandle, r(:,1), r(:,2), r(:,3),'k')
+view(0,45)
 
 end
