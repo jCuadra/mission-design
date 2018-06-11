@@ -1,180 +1,124 @@
+% travellingSpacecraft.m
 
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+function  [N1, N2, T1, T2, totalCost] = travellingSpacecraft(startDate, maxDuration, timeStep, planetIndices, startPlanet, endPlanet, userSettings)
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%{
+This function optimizes a mission with the given parameters and animates it.
 
+INPUTS:
+    startDate       - Structure containting date with y, m, d, and UT fields
+    maxDuration     - Maximum duration for the mission
+    timeStep        - Time step used to generate variables
+    planetIndices   - Vector of indices for planets in mission
+    startPlanet     - Starting planet for mission
+    endPlanet       - End planet for mission
+    userSettings    - Struct containing additional settings for mission
 
+OUTPUTS:
+    N1              - Sequence of departure planets
+    N2              - Sequence of arrival planets
+    T1              - Sequence of departure times
+    T2              - Sequence of arrival times
+    totalCost       - Total cost for the optimization
 
-function  travellingSpacecraft(startDate, maxDuration, timeStep,...
-    allPlanets, startPlanet, endPlanet, UserSettings)
+REQUIRES:
+    animateMission
+    centuriesPastJ2000
+    defineEqualityConstraints
+    defineInequalityConstraints
+    displayProgress
+    getIndex
+    gregorianDate
+    iterationFunction
+    Planet
 
-if ~isempty(UserSettings)
-    
-    axHandle = UserSettings.axHandle;
-    messageHandle = UserSettings.messageHandle;
-    parallelOpt = UserSettings.parallelOpt;
-    noIntOrbitOpt = UserSettings.noIntOrbitOpt;
-    maxTransitOpt = UserSettings.maxTransitOpt;
-    dtOpt = UserSettings.dtOpt;
-    maxCost = UserSettings.maxCost;
-    c3Opt = UserSettings.c3Opt;
-    
+%}
+% ----------------------------------------------
+
+if nargin == 0
+
+    startDate = struct('y', 2018, 'm', 1, 'd', 1, 'UT', 0);
+    maxDuration = 3*360;
+    timeStep = 30;
+    planetIndices = [3 4];
+    startPlanet = 3;
+    endPlanet = 3;
+
+    parallelOpt = 1;
+    noIntOrbitOpt = 0;
+    maxTransitOpt = 1e8;
+    dtOption = 1;
+    maxCost = 1e8;
+    c3Option = 0;
+
 else
-    
+
+    parallelOpt = userSettings.parallelOpt;
+    noIntOrbitOpt = userSettings.noIntOrbitOpt;
+    maxTransitOpt = userSettings.maxTransitOpt;
+    dtOption = userSettings.dtOption;
+    maxCost = userSettings.maxCost;
+    c3Option = userSettings.c3Option;
+
 end
 
-minDT = 3*30;
-maxDT = 1000000*30;
 
-%%
-%%%% LAST UPDATED
-% plain english output (i.e. planet names, specific dates)
-% added sqrt dt factor to cost
-% option to minimize earth c3 instead of dv
-% try to eliminate obviously infeasible variables (cost too high)
-% try to reduce number of variables for non-return mission
-% GUI
-% replace monotonically increasing index with 4 vectors to track x
-% fix no intermediate orbits for return missions
-
-%%
-%%%%%   IN PROGRESS
-
-% Forced Orbit Duration (need a way to force orbit between transits, and
-%   remove orbit variables that don't meet duration)
-
-% simulate input (hard code test input)
-% initial version forces orbit duration for all planets (except start, end)
+minDT = 0;
+maxDT = 1e8;
 minPlanetOrbitDuration = 0;
 
-% add forced orbit constraint in or after loop?
+disp('~~~~~~~~Travelling Spacecraft Problem~~~~~~~~')
+fprintf('\n')
+fprintf('Start:\t\t%s\n', Planet(startPlanet).name)
+fprintf('End:\t\t%s\n', Planet(endPlanet).name)
+if ~(length(planetIndices) == 2 && startPlanet ~= endPlanet)
+    fprintf('Visiting:')
+    for planet = planetIndices
+        if planet ~= startPlanet && planet ~= endPlanet
+            fprintf('\t%s', Planet(planet).name)
+        end
+    end
+    fprintf('\n')
+end
+fprintf('\n')
+fprintf('Start Date:\t%d/%d/%d\n', startDate.m, startDate.d ,startDate.y)
+fprintf('Duration:\t%d days (%.2f years)\n', maxDuration, maxDuration/365.25)
+fprintf('Time Step:\t%d days\n', timeStep)
+fprintf('\n')
+disp(userSettings)
+disp('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
-% dynamically switch between consolidated orbit constraint, and forced
-% orbit constraint
-
-% when allowing planet specific forced orbit duration, allow "no int
-% orbits" option to force other planets to have no orbits
-
-% force intermediate orbits and forced orbits to be exclusive otherwise
-
-% parallel option
-
-%%
-%%%%%   CONSIDERATIONS
-% no int orbits setting is backwards
-% draw hyperbolic orbits
-% stop sending full vectors to constraint functions
-% flyby, two sets of variables, mag only dv that must string together
-% make each constraint its own matrix, concatenate before optimization
-% add maximum orbit duration in addition to minimum orbit duration
-% what even is "proceedHandle"?
-% add TOF^-1/2 factor
-% update test input
-% gui re-animate button
-% implement minDT as input
-% make parfor and for loops the same.  shared function?
-% implement user settings
-% visit specified planets multiple times
-% simplify/rewrite getIndex (is it still necessary?)
-% Parking Orbits (elliptical?)
-% Specific Planet @ Date
-% Specific Launch/Return date
-% No orbit
-% Specified Order
-% create database of deltaV that persists between function calls
-% create numberOfTimeSteps option, instead of explicit timeStep
-% create CUDA mex files (inefficient w/out dynamic parallelism)
-% re-write entirely/portions in C (to run on external graphics card)
-% allow inputs to be strings instead of planet indices
-% flyby capability (limit by deflection angle) (needs many complicated
-%   constraints, especially if a burn is involved)
-%   use second set of variables to calculate for flybys (calculate change in
-%   mag of deltav only).  may not be able to restrict deflection angle
-%   flyby can't have orbit on either side
-%   will still need to match planet dv
-% flyby approximation option (only check mag difference, not vector
-%   difference)
-% allow quiver to show dv instead of actual trajectories in plots
-% use intlinprog for future matlab compatability
-% add option to set end date instead of duration
-% error handling
-% reset gui window
-% animation timestep gui option
-% update test input for non-gui calls
-% swap timeStep & duration in gui
-% adaptive time steps!!!!!!!!
-% planet specific c3, dv minimization
-% min orbit time (eliminate very short flights)
-% gui instant display of number of variables
-% display realistic deltaV using parking orbits & calculating flybys ad hoc
-% make it easier to see planet during orbits / reduce number of orbit
-%   points
-% re-implement orbit constraints
-% move start/end auto-tick checkbox logic to individual radio callbacks
-% disable intermediate orbit checkbox for return missions (or just
-%   implement it)
-% download xcode so lambert.m can be compiled
-% remove c3 option when doing no intermittent orbits
-% add progress update for serial implementation
-% add option to only optimize arrival or departure planet (mainly for fun if no intermediate orbits)
-% display error if duration is not multiple of time step (or fix if
-%   possible)
-% use actual warning messages
-% when re-implementing lower dt limit, remove variables based on dt rather
-%   than high cost
-% don't calculate max transit dt cost values
-% find a way to make defineConstants inputs "prettier"
-% fix parfor warnings
-% arriveTimeVector should be transiteTimeVector?
-% fill in max cost in gui with default value
-% throw out extreme elliptical orbits (i.e. don't fly through the sun!!)
-% use UserSettings throughout missionGUI, not just right before function
-%   call
-
-
-%%
-
-home
-
-% Remember format option
-orig_form = get(0,'format'); format short
+% Store current format, and set to short
+orig_form = get(0, 'format');
+format short
 
 % Start and End Planet Indices
-startPlanetIndex = find(allPlanets == startPlanet);
-endPlanetIndex   = find(allPlanets == endPlanet);
+startPlanetIndex = find(planetIndices == startPlanet);
+endPlanetIndex   = find(planetIndices == endPlanet);
 
-nonReturn = startPlanet~=endPlanet;
+nonReturn = startPlanet ~= endPlanet;
 
 % Define Start Date
-startTime = centPastJ2000(startDate);
+startTime = centuriesPastJ2000(startDate);
 
 % Various time vectors
-departTimeVector = 0:timeStep:maxDuration-timeStep;
-arriveTimeVector = timeStep:timeStep:maxDuration;
-arriveTimeIndex  = maxDuration/timeStep:-1:0;
+departTimeVector = 0 : timeStep:maxDuration - timeStep;
+arriveTimeVector = timeStep : timeStep : maxDuration;
+arriveTimeIndex  = maxDuration / timeStep : -1 : 0;
 
 % Number of Planets
-numPlanets = length(allPlanets);
+numPlanets = length(planetIndices);
 
 % Number of time permutations
 timePermutations = sum(arriveTimeIndex);
 
-% Final Indices
-n1EndIndex = numPlanets;
-n2EndIndex = numPlanets;
-t1EndIndex = maxDuration/timeStep;
-t2EndIndex = 1;
-
 % Define total number of variables and effective variables
-totalNumVars = getIndex(n1EndIndex, n2EndIndex, t1EndIndex, t2EndIndex,...
-    numPlanets, timePermutations, arriveTimeIndex);
-
-% Define time vector used for GetIndex
-transitTimeSum = zeros(size(arriveTimeIndex));
-for timeLoop = 1:length(arriveTimeIndex)
-    transitTimeSum(timeLoop) = sum(arriveTimeIndex(1:timeLoop));
-end
+totalNumVars = (numPlanets ^ 2 - 1) * timePermutations + sum(arriveTimeIndex);
 
 %% Initialize Constraints
 
-%%% Number of rows for inequality constraints
+% Number of rows for inequality constraints
 mi(1) = 1;                          % 1 Minimum number of transits
 mi(2) = numPlanets;                 % 2 Depart from each planet
 mi(3) = numPlanets;                 % 3 Arrive at each planet
@@ -182,22 +126,22 @@ mi(4) = length(departTimeVector);   % 4 Only one event can begin at each time
 mi(5) = length(departTimeVector);   % 5 Only one event can end at each time
 
 % Number of rows for equality constraints
-me(1) = 1;                                          % 1 Home planet first
-me(2) = 1;                                          % 2 Target planet last
-me(3) = numPlanets*(length(departTimeVector)-1);    % 3 Time pairs must match
+me(1) = 1;                                            % 1 Home planet first
+me(2) = 1;                                            % 2 Target planet last
+me(3) = numPlanets * (length(departTimeVector) - 1);  % 3 Time pairs must match
 
-validIneqConstraints = [1:5];
-validEqConstraints = [1:3];
+validIneqConstraints = 1:5;
+validEqConstraints = 1:3;
 
 % Initialize A and b cells
-AiCell = cell(max(validIneqConstraints),1);
-biCell = cell(max(validIneqConstraints),1);
+AiCell = cell(max(validIneqConstraints), 1);
+biCell = cell(max(validIneqConstraints), 1);
 for loop = validIneqConstraints
     AiCell{loop} = zeros(mi(loop), totalNumVars);
     biCell{loop} = zeros(mi(loop), 1);
 end
-AeCell = cell(max(validEqConstraints),1);
-beCell = cell(max(validEqConstraints),1);
+AeCell = cell(max(validEqConstraints), 1);
+beCell = cell(max(validEqConstraints), 1);
 for loop = validEqConstraints
     AeCell{loop} = zeros(me(loop), totalNumVars);
     beCell{loop} = zeros(me(loop), 1);
@@ -207,7 +151,7 @@ end
 if ~nonReturn
     biCell{1} = -numPlanets;
 else
-    biCell{1} = 1-numPlanets;
+    biCell{1} = -numPlanets + 1;
 end
 biCell{2}(:) = -1;
 biCell{3}(:) = -1;
@@ -225,19 +169,19 @@ beCell{2} = 1;
 %%
 
 % Initialize values
-c = zeros(totalNumVars,1);
-n1IndexVector = zeros(totalNumVars,1);
-n2IndexVector = zeros(totalNumVars,1);
-t1IndexVector = zeros(totalNumVars,1);
-t2IndexVector = zeros(totalNumVars,1);
-dtVector = zeros(totalNumVars,1);
+c = zeros(totalNumVars, 1);
+n1IndexVector = zeros(totalNumVars, 1);
+n2IndexVector = zeros(totalNumVars, 1);
+t1IndexVector = zeros(totalNumVars, 1);
+t2IndexVector = zeros(totalNumVars, 1);
+dtVector = zeros(totalNumVars, 1);
 
 disp(' ')
-fprintf('Total number of variables: %d\n',totalNumVars);
-effNumOfVars = totalNumVars*(1-1/numPlanets);
-% upper bound
+fprintf('Total number of variables: %d\n', totalNumVars);
+effNumOfVars = totalNumVars * (1 - 1 / numPlanets);
+% Upper bound
 fprintf('Estimated number of deltaV calculations: %d\n', int32(effNumOfVars));
-% warn if bintprog might fail
+% Warn if intprog might fail
 if effNumOfVars >= 65535
     disp('Warning: It is unlikely that the current solver can solve the system.');
 elseif totalNumVars >= 65535
@@ -249,96 +193,88 @@ end
 disp('Calculating cost vector...')
 
 if parallelOpt
-    
+
     tic
     parfor j = 1:totalNumVars
-        
-        tic
-        
-        [n1Index,n2Index,t1Index,t2Index] = getIndex(j, numPlanets,...
-            timePermutations, arriveTimeIndex);
+
+        [n1Index, n2Index, t1Index, t2Index] = getIndex(j, numPlanets, timePermutations, arriveTimeIndex);
         n1IndexVector(j) = n1Index;
         n2IndexVector(j) = n2Index;
         t1IndexVector(j) = t1Index;
         t2IndexVector(j) = t2Index;
-        
+
         % Define departure time
         t1 = departTimeVector(t1Index);
-        
+
         % Define Arrival Time
         t2 = t1+arriveTimeVector(t2Index);
-        
-        dt = t2-t1;
+
+        dt = t2 - t1;
         dtVector(j) = dt;
-        
+
         % Find Cost
         if n1Index ~= n2Index
-            if dt<minDT || dt>maxDT
+            if dt < minDT || dt > maxDT
                 c(j) = 1e8;
-            elseif ~(nonReturn && (n1Index==endPlanetIndex || n2Index==startPlanetIndex))
-                % for nonreturn, assume start isn't arrived at, and end is departed from
-                c(j) = calculateDV(dt, allPlanets(n1Index), allPlanets(n2Index),...
-                    startTime+t1/36525, dtOpt, c3Opt);
-                %if ~isreal(c(j))
-                %    c(j) = 1e8;
-                %end
+            elseif ~(nonReturn && (n1Index == endPlanetIndex || n2Index == startPlanetIndex))
+                planetDepart = Planet(planetIndices(n1Index), startTime + t1 / 36525);
+                planetArrive = Planet(planetIndices(n2Index), startTime + t2 / 36525);
+                [~, ~, deltaV] = Orbit.transferOrbit(planetDepart, planetArrive, dt, dtOption, c3Option);
+                c(j) = deltaV;
             end
         end
-        
-        
-        
-    end
-    
+
+    end % parfor
+
 else
-    
-    progressTracker = zeros(1,totalNumVars);
+
+    progressTracker = zeros(1, totalNumVars);
     prevDisp = -1;
-    
+
     for j = 1:totalNumVars
-        
+
         tic
-        
-        [n1Index,n2Index,t1Index,t2Index,c_j]=...
-            iterationFunction(j,numPlanets,timePermutations,arriveTimeIndex,...
-            arriveTimeVector,departTimeVector,minDT,maxDT,nonReturn,...
-            allPlanets,startTime,dtOpt, c3Opt);
-        
+
+        [n1Index, n2Index, t1Index, t2Index, c_j] = iterateCostVector(j, ...
+            numPlanets, timePermutations, arriveTimeIndex, ...
+            arriveTimeVector, departTimeVector, minDT, maxDT, nonReturn, ...
+            planetIndices, startTime, dtOption, c3Option, endPlanetIndex, startPlanetIndex);
+
         n1IndexVector(j) = n1Index;
         n2IndexVector(j) = n2Index;
         t1IndexVector(j) = t1Index;
         t2IndexVector(j) = t2Index;
-        
+
         c(j) = c_j;
-        
+
         progressTracker(j) = toc;
-        
-        if fix(100*j/totalNumVars)~=prevDisp
-            prevDisp=fix(100*j/totalNumVars);
-            displayProgress(progressTracker,j,totalNumVars)
+
+        if fix(100 * j / totalNumVars) ~= prevDisp
+            prevDisp = fix(100 * j / totalNumVars);
+            displayProgress(progressTracker, j, totalNumVars)
             pause(0.01)
         end
-        
+
     end
-    
+
 end
 
 %% Creating Constraint Matrices
 
 for j = 1:totalNumVars
-    
-    [n1Index,n2Index,t1Index,t2Index] = getIndex(j, numPlanets,...
-        timePermutations, arriveTimeIndex);
-    
+
+    [n1Index, n2Index, t1Index, t2Index] = getIndex(j, numPlanets, timePermutations, arriveTimeIndex);
+
     % Define departure time
     t1 = departTimeVector(t1Index);
-    
+
     % Define Arrival Time
-    t2 = t1+arriveTimeVector(t2Index);
-    
-    AiCell = defineIneqConstraints(AiCell, j, validIneqConstraints, t2, ...
+    t2 = t1 + arriveTimeVector(t2Index);
+
+    AiCell = defineInequalityConstraints(AiCell, j, validIneqConstraints, t2, ...
         n1Index, n2Index, t1Index, arriveTimeVector);
-    
-    AeCell = defineEqConstraints(AeCell, j, validEqConstraints, t1, t2,...
+
+    AeCell = defineEqualityConstraints(AeCell, j, validEqConstraints, t1, t2,...
         n1Index, n2Index, t1Index, startPlanetIndex, endPlanetIndex,...
         arriveTimeVector, departTimeVector);
 
@@ -362,89 +298,89 @@ for constraint = validEqConstraints
     be = [be; beCell{constraint}];
 end
 
-%%% add forced orbit constraint
+% Add forced orbit constraint
 %
 % if minPlanetOrbitDuration
 %     for i = 1:numPlanets
-%         if allPlanets(i)~=startPlanet && allPlanets(i)~=endPlanet
+%         if planetIndices(i)~=startPlanet && planetIndices(i)~=endPlanet
 %             Ae(end+1,n1IndexVector==i & n2IndexVector==i) = 1;
 %             be(end+1) = 1;
 %         end
 %     end
 % end
 
-%%% reduce number of variables
+% Reduce number of variables
 varsToDelete = false(size(c));
 
-% remove invalid orbits from start & end planet(s)
+% Remove invalid orbits from start & end planet(s)
 if nonReturn
-    invalidOrbit = n1IndexVector==n2IndexVector &...
-        ~((n1IndexVector==startPlanetIndex & t1IndexVector==1) |...
-        (n2IndexVector==endPlanetIndex & t2IndexVector==1) |...
-        (n1IndexVector~=startPlanetIndex) |...
-        (n2IndexVector~=endPlanetIndex));
+    invalidOrbit = n1IndexVector == n2IndexVector & ...
+        ~((n1IndexVector == startPlanetIndex & t1IndexVector == 1) | ...
+        (n2IndexVector == endPlanetIndex & t2IndexVector==1) | ...
+        (n1IndexVector ~= startPlanetIndex) | ...
+        (n2IndexVector ~= endPlanetIndex));
     varsToDelete = invalidOrbit | varsToDelete;
 else
-    invalidOrbit = n1IndexVector==n2IndexVector &...
-        n1IndexVector==startPlanetIndex &...
-        ~(t1IndexVector==1 |...
-        t2IndexVector==1);
+    invalidOrbit = n1IndexVector == n2IndexVector & ...
+        n1IndexVector == startPlanetIndex & ...
+        ~(t1IndexVector == 1 |...
+        t2IndexVector == 1);
     varsToDelete = invalidOrbit | varsToDelete;
 end
 
-% no intermediate orbits
+% No intermediate orbits
 if noIntOrbitOpt
-    intOrbit = n1IndexVector==n2IndexVector &...
-        ~((n1IndexVector==startPlanetIndex & t1IndexVector==1) |...
-        (n2IndexVector==endPlanetIndex & t2IndexVector==1));
+    intOrbit = n1IndexVector == n2IndexVector & ...
+        ~((n1IndexVector == startPlanetIndex & t1IndexVector == 1) | ...
+        (n2IndexVector == endPlanetIndex & t2IndexVector == 1));
     varsToDelete = intOrbit | varsToDelete;
 end
 
-% deltav too high
-% maybe find a way to adjust for c3 option?
-switch dtOpt
+% Deltav too high
+% Maybe find a way to adjust for c3 option?
+switch dtOption
     case 2
-        cTemp = c./sqrt(dtVector);
+        cTemp = c ./ sqrt(dtVector);
     otherwise
         cTemp = c;
 end
 if maxCost
-    tooHigh = cTemp>maxCost;
+    tooHigh = cTemp > maxCost;
 else
-    tooHigh = cTemp>1e7;
+    tooHigh = cTemp > 1e7;
 end
 varsToDelete = tooHigh | varsToDelete;
 
-% non return mission simplifications
+% Non return mission simplifications
 if nonReturn
-    noDepart = n1IndexVector==endPlanetIndex & n1IndexVector~=n2IndexVector;
-    noArrival = n2IndexVector==startPlanetIndex & n1IndexVector~=n2IndexVector;
+    noDepart = n1IndexVector == endPlanetIndex & n1IndexVector ~= n2IndexVector;
+    noArrival = n2IndexVector == startPlanetIndex & n1IndexVector ~= n2IndexVector;
     varsToDelete = noArrival | noDepart | varsToDelete;
 end
 
-% transit time limit (may remove sqrt(dt) factor if needed)
+% Transit time limit (may remove sqrt(dt) factor if needed)
 if maxTransitOpt
-    tooLongTransit = (n2IndexVector-n1IndexVector)>maxTransitOpt &...
-        n1IndexVector~=n2IndexVector;
+    tooLongTransit = (n2IndexVector - n1IndexVector) > maxTransitOpt & n1IndexVector ~= n2IndexVector;
     varsToDelete = tooLongTransit | varsToDelete;
 end
 
-% set min orbit time (only if specified)
-orbitTooShort = (n1IndexVector==n2IndexVector) & (dtVector<minPlanetOrbitDuration);
+% Set min orbit time (only if specified)
+orbitTooShort = (n1IndexVector == n2IndexVector) & (dtVector < minPlanetOrbitDuration);
 varsToDelete = orbitTooShort | varsToDelete;
 
+% Delete variables
 c(varsToDelete) = [];
 n1IndexVector(varsToDelete) = [];
 n2IndexVector(varsToDelete) = [];
 t1IndexVector(varsToDelete) = [];
 t2IndexVector(varsToDelete) = [];
 dtVector(varsToDelete) = [];
-Ai(:,varsToDelete) = [];
-Ae(:,varsToDelete) = [];
+Ai(:, varsToDelete) = [];
+Ae(:, varsToDelete) = [];
 
 disp('Calculations finished.')
 toc
-fprintf('Reduced number of variables: %d\n',int32(length(c)))
+fprintf('Reduced number of variables: %d\n', int32(length(c)))
 
 %% Optimization
 
@@ -453,98 +389,151 @@ disp('Optimization started.')
 
 % Time MATLAB bintprog function
 tic
-%X = bintprog(c,Ai,bi,Ae,be);
-X = intlinprog(c,1:length(c),Ai,bi,Ae,be,zeros(size(c)),ones(size(c)));
+%X = bintprog(c, Ai, bi, Ae, be);
+x = intlinprog(c, 1:length(c), Ai, bi, Ae, be, zeros(size(c)), ones(size(c)));
 toc
 
 % Find nonzero indices
-X_indices = find(logical(round(X)));
+xIndices = find(logical(round(x)));
 
 % Get number nonzero indices
-numIndex = length(X_indices);
+numIndex = length(xIndices);
 
 % Initialize outputs
-Xn1_index = zeros(1,numIndex);
-Xn2_index = zeros(1,numIndex);
-Xt1_index = zeros(1,numIndex);
-Xt2_index = zeros(1,numIndex);
-Xn1 = zeros(1,numIndex);
-Xn2 = zeros(1,numIndex);
-Xt1 = zeros(1,numIndex);
-Xt2 = zeros(1,numIndex);
+N1 = zeros(1, numIndex);
+N2 = zeros(1, numIndex);
+T1 = zeros(1, numIndex);
+T2 = zeros(1, numIndex);
 
-
+% Convert from indices to usable values
 for indexLoop = 1:numIndex
-    % Get current variable
-    Xn1_index(indexLoop) = n1IndexVector(X_indices(indexLoop));
-    Xn2_index(indexLoop) = n2IndexVector(X_indices(indexLoop));
-    Xt1_index(indexLoop) = t1IndexVector(X_indices(indexLoop));
-    Xt2_index(indexLoop) = t2IndexVector(X_indices(indexLoop));
-    
-    % Convert from indices to usable values
-    Xn1(indexLoop) = allPlanets(Xn1_index(indexLoop));
-    Xn2(indexLoop) = allPlanets(Xn2_index(indexLoop));
-    Xt1(indexLoop) = departTimeVector(Xt1_index(indexLoop));
-    Xt2(indexLoop) = Xt1(indexLoop)+arriveTimeVector(Xt2_index(indexLoop));
+    N1(indexLoop) = planetIndices(n1IndexVector(xIndices(indexLoop)));
+    N2(indexLoop) = planetIndices(n2IndexVector(xIndices(indexLoop)));
+    T1(indexLoop) = departTimeVector(t1IndexVector(xIndices(indexLoop)));
+    T2(indexLoop) = T1(indexLoop) + arriveTimeVector(t2IndexVector(xIndices(indexLoop)));
 end
 
-[~, indexOrder] = sort(Xt1);
-Xn1 = Xn1(indexOrder);
-Xn2 = Xn2(indexOrder);
-Xt1 = Xt1(indexOrder);
-Xt2 = Xt2(indexOrder);
+[T1, indexOrder] = sort(T1);
+T2 = T2(indexOrder);
+N1 = N1(indexOrder);
+N2 = N2(indexOrder);
 
-% concatenate consecutive orbits
+% Concatenate consecutive orbits
 indexLoop = 2;
-while indexLoop<numIndex+1
-    if Xn1(indexLoop)==Xn1(indexLoop-1) && Xn1(indexLoop)==Xn2(indexLoop) &&...
-            Xn1(indexLoop-1)==Xn2(indexLoop-1)
-        Xt2(indexLoop-1) = Xt2(indexLoop);
-        Xn1(indexLoop) = [];
-        Xn2(indexLoop) = [];
-        Xt1(indexLoop) = [];
-        Xt2(indexLoop) = [];
-        numIndex = numIndex-1;
+while indexLoop < numIndex + 1
+    if N1(indexLoop) == N1(indexLoop - 1) && N1(indexLoop) == N2(indexLoop) && N2(indexLoop - 1) == N2(indexLoop - 1)
+        T2(indexLoop-1) = T2(indexLoop);
+        N1(indexLoop) = [];
+        N2(indexLoop) = [];
+        T1(indexLoop) = [];
+        T2(indexLoop) = [];
+        numIndex = numIndex - 1;
     else
-        indexLoop = indexLoop+1;
+        indexLoop = indexLoop + 1;
     end
 end
 
-%%% natural language ouput
-fprintf('\r')
+% Natural language ouput
+fprintf('\n')
 for line = 1:numIndex
-    p1 = planetIndex(Xn1(line));
-    date1 = gregDate(startTime+Xt1(line)/36525);
-    date2 = gregDate(startTime+Xt2(line)/36525);
-    if Xn1(line) == Xn2(line)
-        fprintf('Orbit %s ',p1.name);
-        fprintf('from %d/%d/%d ',date1.m,date1.d,date1.y);
-        fprintf('until %d/%d/%d.\r',date2.m,date2.d,date2.y);
+    p1 = Planet(N1(line));
+    date1 = gregorianDate(startTime + T1(line) / 36525);
+    date2 = gregorianDate(startTime + T2(line) / 36525);
+    if N1(line) == N2(line)
+        fprintf('Orbit %s ', p1.name);
     else
-        p2 = planetIndex(Xn2(line));
+        p2 = Planet(N2(line));
         fprintf('Transit from %s ', p1.name);
-        fprintf('to %s ',p2.name);
-        fprintf('from %d/%d/%d ',date1.m,date1.d,date1.y);
-        fprintf('until %d/%d/%d.\r',date2.m,date2.d,date2.y);
+        fprintf('to %s ', p2.name);
     end
+    fprintf('from %d/%d/%d ', date1.m, date1.d ,date1.y);
+    fprintf('until %d/%d/%d.', date2.m, date2.d ,date2.y);
+    fprintf('\n')
 end
-fprintf('\r')
+fprintf('\n')
 
-if dtOpt==1
-    totalCost = full(dot(c,X));
-elseif dtOpt==2
-    totalCost = full(dot(c./sqrt(dtVector),X));
+% Calculate total cost and adjust for dtOption
+if dtOption == 1
+    totalCost = full(dot(c, x));
+elseif dtOption == 2
+    totalCost = full(dot(c ./ sqrt(dtVector), x));
 end
+fprintf('Total cost: %2.4f\n', totalCost);
+fprintf('\n\n')
 
-fprintf('Total cost: %2.4f\r', totalCost);%/sum(sqrt(Xt2-Xt1)) );
-fprintf('\r')
-
-set(messageHandle,'Enable','on');
-
-% animate mission sequence
-animateMission(Xn1, Xn2, Xt1, Xt2, startTime, maxDuration, axHandle);
-fprintf('\r')
-
+% Restore original format
 format(orig_form)
 
 end
+
+%%% BUG
+% fix hyperbolic orbits
+% saturn trajectories don't seem to be working
+% fix bug in serial processing (default parameters, venus to mars)
+% fix issue with screen going blank after optimizations
+
+%%% TODO
+% Forced Orbit Duration (need a way to force orbit between transits, and remove orbit variables that don't meet duration)
+% update test input for non-gui calls
+% initial version forces orbit duration for all planets (except start, end)
+% add forced orbit constraint in or after loop?
+% stop sending full vectors to constraint functions
+% dynamically switch between consolidated orbit constraint, and forced orbit constraint
+% when allowing planet specific forced orbit duration, allow "no int orbits" option to force other planets to have no orbits
+% force intermediate orbits and forced orbits to be exclusive
+% show previously calculated results in session in dropdown menu, and reanimate from there
+% flyby, two sets of variables, mag only dv that must string together
+% add maximum orbit duration in addition to minimum orbit duration
+% add TOF^-1/2 factor
+% gui re-animate button
+% implement minDT as input
+% make parfor and for loops the same.  shared function?
+% visit specified planets multiple times
+% simplify/rewrite getIndex (is it still necessary?)
+% Parking Orbits cost estimation
+% Specific Planet @ Date
+% Specific Launch/Return date
+% Specified Order
+% create database of deltaV that persists between function calls
+% create numberOfTimeSteps option, instead of explicit timeStep
+% create CUDA mex files
+% re-write entirely/portions in C (or even Python)
+% allow inputs to be strings instead of planet indices
+% flyby capability (limit by deflection angle) (needs many complicated constraints, especially if a burn is involved)
+% use second set of variables to calculate for flybys (calculate change in mag of deltav only).
+%   may not be able to restrict deflection angle
+%   flyby can't have orbit on either side
+%   will still need to match planet dv
+% flyby approximation option (only check mag difference, not vector difference)
+% allow quiver to show dv instead of actual trajectories in plots
+% add option to set end date instead of duration
+% error handling
+% reset gui window
+% animation timestep gui option
+% swap timeStep & duration in gui
+% adaptive time steps
+% planet specific c3, dv minimization
+% min orbit time (eliminate very short flights)
+% gui instant display of number of variables
+% display realistic deltaV using parking orbits & calculating flybys ad hoc
+% make it easier to see planet during orbits / reduce number of orbit points
+% re-implement orbit constraints
+% try to run on "enter"
+% move start/end auto-tick checkbox logic to individual radio callbacks
+% remove c3 option when doing no intermittent orbits
+% add option to only optimize arrival or departure planet (mainly for fun if no intermediate orbits)
+% display error if duration is not multiple of time step (or fix if possible)
+% use actual warning messages
+% when re-implementing lower dt limit, remove variables based on dt rather than high cost
+% arriveTimeVector should be transitTimeVector?
+% don't calculate max transit dt cost values
+% fill in max cost in gui with default value
+% throw out extreme elliptical orbits (i.e. don't fly through the sun!)
+% use userSettings throughout missionGUI, not just right before function call
+% add option to use multiple passes (re-adjust time steps and feasible solutions based on previous solution)
+% don't calculate dv from start to end planet when there are other target planets
+% store time indices in lookup table using 'days after J2000'
+% move animate mission out of travellingSpacecraft
+% echo input arguments
+% deal with minDT, maxDT, and minPlanetOrbitDuration
+% use continuous slider

@@ -22,7 +22,7 @@ function varargout = missionGUI(varargin)
 
 % Edit the above text to modify the response to help missionGUI
 
-% Last Modified by GUIDE v2.5 25-Jun-2016 08:04:49
+% Last Modified by GUIDE v2.5 10-Jun-2018 17:13:46
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -76,7 +76,6 @@ function varargout = missionGUI_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
-
 function edit1_Callback(hObject, eventdata, handles)
 % hObject    handle to edit1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -99,7 +98,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-
 function edit2_Callback(hObject, eventdata, handles)
 % hObject    handle to edit2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -120,7 +118,6 @@ function edit2_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 
 
 function edit3_Callback(hObject, eventdata, handles)
@@ -639,11 +636,14 @@ end
 
 % --- Executes on button press in pushbutton1.
 function pushbutton1_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 
-set(hObject,'String','Running...')
+set(hObject,'String','Calculating...')
 set(hObject,'Value',0)
 set(hObject,'Enable','off')
-set(handles.text15,'Enable','off')
+set(handles.text15,'Visible','off')
 
 startYear = str2double(get(handles.edit1,'String'));
 startMonth = str2double(get(handles.edit2,'String'));
@@ -717,16 +717,16 @@ switch endPlanet
         set(handles.checkbox10,'Value',1);
 end
 
-allPlanets = [];
-if(get(handles.checkbox1,'Value')); allPlanets=[allPlanets 1]; end
-if(get(handles.checkbox2,'Value')); allPlanets=[allPlanets 2]; end
-if(get(handles.checkbox5,'Value')); allPlanets=[allPlanets 3]; end
-if(get(handles.checkbox3,'Value')); allPlanets=[allPlanets 4]; end
-if(get(handles.checkbox7,'Value')); allPlanets=[allPlanets 5]; end
-if(get(handles.checkbox6,'Value')); allPlanets=[allPlanets 6]; end
-if(get(handles.checkbox8,'Value')); allPlanets=[allPlanets 7]; end
-if(get(handles.checkbox9,'Value')); allPlanets=[allPlanets 8]; end
-if(get(handles.checkbox10,'Value')); allPlanets=[allPlanets 9]; end
+planetIndices = [];
+if(get(handles.checkbox1,'Value')); planetIndices=[planetIndices 1]; end
+if(get(handles.checkbox2,'Value')); planetIndices=[planetIndices 2]; end
+if(get(handles.checkbox5,'Value')); planetIndices=[planetIndices 3]; end
+if(get(handles.checkbox3,'Value')); planetIndices=[planetIndices 4]; end
+if(get(handles.checkbox7,'Value')); planetIndices=[planetIndices 5]; end
+if(get(handles.checkbox6,'Value')); planetIndices=[planetIndices 6]; end
+if(get(handles.checkbox8,'Value')); planetIndices=[planetIndices 7]; end
+if(get(handles.checkbox9,'Value')); planetIndices=[planetIndices 8]; end
+if(get(handles.checkbox10,'Value')); planetIndices=[planetIndices 9]; end
 
 parallelOpt = get(handles.checkbox13,'Value');
 noIntOrbitOpt = get(handles.checkbox11,'Value');
@@ -734,40 +734,67 @@ noIntOrbitOpt = get(handles.checkbox11,'Value');
 maxTransitOpt = str2num(get(handles.edit9,'String'));
 maxCost = str2num(get(handles.edit10,'String'));
 
-if(get(handles.radiobutton19,'Value')); dtOpt=1; end
-if(get(handles.radiobutton20,'Value')); dtOpt=2; end
+if(get(handles.radiobutton19,'Value')); dtOption=1; end
+if(get(handles.radiobutton20,'Value')); dtOption=2; end
 
-if(get(handles.radiobutton21,'Value')); c3Opt=0; end
-if(get(handles.radiobutton22,'Value')); c3Opt=1; end
+if(get(handles.radiobutton21,'Value')); c3Option=0; end
+if(get(handles.radiobutton22,'Value')); c3Option=1; end
 
 drawnow
 
-UserSettings = struct('axHandle', handles.axes1,...
-    'messageHandle',handles.text15,...
-    'parallelOpt',parallelOpt,...
-    'noIntOrbitOpt',noIntOrbitOpt,...
-    'maxTransitOpt',maxTransitOpt,...
-    'dtOpt',dtOpt,...
-    'maxCost',maxCost,...
-    'c3Opt',c3Opt);
+UserSettings = struct('parallelOpt', parallelOpt, ...
+    'noIntOrbitOpt', noIntOrbitOpt, ...
+    'maxTransitOpt', maxTransitOpt, ...
+    'dtOption', dtOption, ...
+    'maxCost', maxCost, ...
+    'c3Option', c3Option);
 
+[N1, N2, T1, T2, ~] = travellingSpacecraft(startDate, maxDuration, timeStep, planetIndices, startPlanet, endPlanet, UserSettings);
 
-travellingSpacecraft(startDate, maxDuration, timeStep,...
-    allPlanets, startPlanet, endPlanet, UserSettings);
+hObject.UserData.N1 = N1;
+hObject.UserData.N2 = N2;
+hObject.UserData.T1 = T1;
+hObject.UserData.T2 = T2;
+hObject.UserData.startDate = startDate;
+hObject.UserData.maxDuration = maxDuration;
+hObject.UserData.dtOption = dtOption;
+hObject.UserData.c3Option = c3Option;
 
-%travellingSpacecraft_snapshot(startDate, maxDuration, timeStep,...
-%    allPlanets, startPlanet, endPlanet, UserSettings)
-
-set(hObject,'Enable','on');
-set(hObject,'String','RUN');
+set(hObject, 'String', 'Calculate');
+set(hObject, 'Enable', 'on');
+set(handles.pushbutton2, 'Enable', 'on');
+set(handles.text15, 'Visible', 'on');
 guidata(hObject, handles);
 
 
-
-% hObject    handle to pushbutton1 (see GCBO)
+% --- Executes on button press in pushbutton2.
+function pushbutton2_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+set(hObject, 'Enable', 'off');
+set(hObject, 'String', 'Drawing...');
+set(handles.pushbutton1, 'Enable', 'off');
+
+set(handles.slider1, 'Visible', 'on');
+view(handles.axes1, 0, handles.slider1.Value);
+
+N1 = handles.pushbutton1.UserData.N1;
+N2 = handles.pushbutton1.UserData.N2;
+T1 = handles.pushbutton1.UserData.T1;
+T2 = handles.pushbutton1.UserData.T2;
+startDate = handles.pushbutton1.UserData.startDate;
+maxDuration = handles.pushbutton1.UserData.maxDuration;
+dtOption = handles.pushbutton1.UserData.dtOption;
+c3Option = handles.pushbutton1.UserData.c3Option;
+
+animateMission(N1, N2, T1, T2, startDate, maxDuration, handles.axes1, dtOption, c3Option);
+
+set(handles.pushbutton1, 'Enable', 'on');
+set(hObject, 'String', 'Draw');
+set(hObject, 'Enable', 'on');
+guidata(hObject, handles);
 
 % --- Executes on button press in checkbox11.
 function checkbox11_Callback(hObject, eventdata, handles)
@@ -776,7 +803,6 @@ function checkbox11_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of checkbox11
-
 
 
 function edit9_Callback(hObject, eventdata, handles)
@@ -832,7 +858,6 @@ function checkbox13_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of checkbox13
 
 
-
 function edit10_Callback(hObject, eventdata, handles)
 % hObject    handle to edit10 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -885,7 +910,6 @@ function pushbutton1_ButtonDownFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-
 function edit11_Callback(hObject, eventdata, handles)
 % hObject    handle to edit11 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -917,7 +941,6 @@ function checkbox14_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of checkbox14
 
 
-
 function edit12_Callback(hObject, eventdata, handles)
 % hObject    handle to edit12 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -937,4 +960,28 @@ function edit12_CreateFcn(hObject, eventdata, handles)
 %       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on slider movement.
+function slider1_Callback(hObject, eventdata, handles)
+% hObject    handle to slider1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+
+view(handles.axes1, 0, hObject.Value);
+
+
+% --- Executes during object creation, after setting all properties.
+function slider1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to slider1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
